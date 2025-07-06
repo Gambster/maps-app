@@ -8,9 +8,10 @@
     <div
       class="form-control"
       (click)="flyToMarker(marker.mapboxMarker.getLngLat())"
+      (dblclick)="deleteMarker(marker)"
     >
       <label
-        class="label cursor-pointer flex justify-between items-start gap-2"
+        class="label cursor-pointer flex justify-between items-center gap-2"
       >
         <span
           class="label-text text-black text-xs break-words whitespace-pre-wrap flex-1"
