@@ -1,11 +1,19 @@
-import { AfterViewInit, Component, ElementRef, viewChild } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  effect,
+  ElementRef,
+  signal,
+  viewChild,
+} from '@angular/core';
 import mapboxgl from 'mapbox-gl'; // or "const mapboxgl = require('mapbox-gl');"
 import { environment } from '../../../environments/environment';
+import { DecimalPipe, JsonPipe } from '@angular/common';
 
 mapboxgl.accessToken = environment.mapboxKey;
 @Component({
   selector: 'app-fullscreen-map-page',
-  imports: [],
+  imports: [DecimalPipe, JsonPipe],
   templateUrl: './fullscreen-map-page.component.html',
   styles: `
 
@@ -14,10 +22,36 @@ mapboxgl.accessToken = environment.mapboxKey;
       height: calc(100vh - 64px);
     }
 
+    #controls {
+      background-color: white;
+      padding: 10px;
+      border-radius: 5px;
+      position: fixed;
+      bottom: 25px;
+      right: 20px;
+      z-index: 9999;
+      box-shadow: 0 0 10px 0 rgb(0,0,0,0.1);
+      border: 1px solid #e2e8f0;
+      width: 250px
+    }
+
   `,
 })
 export class FullscreenMapPageComponent implements AfterViewInit {
   divElement = viewChild<ElementRef>('map');
+  map = signal<mapboxgl.Map | null>(null);
+
+  zoom = signal<number>(14);
+  coordinates = signal({
+    lng: 40,
+    lat: -74.5,
+  });
+
+  zoomEffect = effect(() => {
+    if (!this.map()) return;
+
+    this.map()?.zoomTo(this.zoom());
+  });
 
   async ngAfterViewInit() {
     if (!this.divElement()?.nativeElement) return;
@@ -25,12 +59,28 @@ export class FullscreenMapPageComponent implements AfterViewInit {
     await new Promise((resolve) => setTimeout(resolve, 80));
 
     const element = this.divElement()!.nativeElement;
-
+    const { lat, lng } = this.coordinates();
     const map = new mapboxgl.Map({
       container: element,
       style: 'mapbox://styles/mapbox/streets-v12',
-      center: [-74.5, 40],
-      zoom: 9,
+      center: [lat, lng],
+      zoom: this.zoom(),
     });
+
+    this.mapListeners(map);
+  }
+
+  mapListeners(map: mapboxgl.Map) {
+    map.on('zoomend', (event) => {
+      const newZoom = event.target.getZoom();
+      this.zoom.set(newZoom);
+    });
+
+    map.on('moveend', () => {
+      const center = map.getCenter();
+      this.coordinates.set(center);
+    });
+
+    this.map.set(map);
   }
 }
