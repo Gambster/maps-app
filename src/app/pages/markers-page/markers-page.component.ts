@@ -6,18 +6,26 @@ import {
   viewChild,
 } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import mapboxgl from 'mapbox-gl';
+import mapboxgl, { LngLatLike } from 'mapbox-gl';
+import { v4 as UUIDv4 } from 'uuid';
+import { JsonPipe } from '@angular/common';
 
 mapboxgl.accessToken = environment.mapboxKey;
 
+interface Marker {
+  id: string;
+  mapboxMarker: mapboxgl.Marker;
+}
+
 @Component({
   selector: 'app-markers-page',
-  imports: [],
+  imports: [JsonPipe],
   templateUrl: './markers-page.component.html',
 })
 export class MarkersPageComponent implements AfterViewInit {
   divElement = viewChild<ElementRef>('map');
   map = signal<mapboxgl.Map | null>(null);
+  markers = signal<Marker[]>([]);
 
   async ngAfterViewInit() {
     if (!this.divElement()?.nativeElement) return;
@@ -33,14 +41,41 @@ export class MarkersPageComponent implements AfterViewInit {
       zoom: 14,
     });
 
-    const market = new mapboxgl.Marker({
-      color: 'purple',
-    })
-      .setLngLat([-103.4972323, 25.5627186])
-      .addTo(map);
-
     this.mapListeners(map);
   }
 
-  mapListeners(map: mapboxgl.Map) {}
+  mapListeners(map: mapboxgl.Map) {
+    map.on('click', (event) => this.mapClick(event));
+    console.log('add');
+    this.map.set(map);
+  }
+
+  mapClick(event: mapboxgl.MapMouseEvent) {
+    if (!this.map()) return;
+    const color = '#xxxxxx'.replace(/x/g, (y) =>
+      ((Math.random() * 16) | 0).toString(16)
+    );
+    const latLng = event.lngLat;
+
+    const mapboxMarker = new mapboxgl.Marker({
+      color: color,
+    })
+      .setLngLat(latLng)
+      .addTo(this.map()!);
+
+    const newMarker: Marker = {
+      id: UUIDv4(),
+      mapboxMarker: mapboxMarker,
+    };
+
+    this.markers.update((prev) => [...prev, newMarker]);
+  }
+
+  flyToMarker(lngLat: LngLatLike) {
+    if (!this.map()) return;
+
+    this.map()!.flyTo({
+      center: lngLat,
+    });
+  }
 }
